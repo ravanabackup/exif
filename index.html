@@ -1,0 +1,127 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EXIF Remover</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
+            height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background-color: #f4f4f4;
+        }
+        #upload-form {
+            text-align: center;
+            padding: 20px;
+            border: 2px dashed #aaa;
+            border-radius: 10px;
+            background-color: #fff;
+        }
+        #uploaded-image {
+            max-width: 100%;
+            max-height: 300px;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div id="upload-form">
+        <h2>Upload Image to Remove EXIF Data</h2>
+        <div id="drag-drop-upload">
+            Drop image anywhere on this page
+        </div>
+        <div id="file-upload">
+            <input type="file" id="file-input" accept="image/*">
+            <button onclick="uploadViaFile()">Upload</button>
+        </div>
+        <button onclick="removeExif()">Remove EXIF</button>
+        <div id="status"></div>
+        <div id="before-size">Before: <span id="before-size-value"></span> KB</div>
+        <div id="after-size">After: <span id="after-size-value"></span> KB</div>
+        <img id="uploaded-image" src="" alt="">
+    </div>
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function() {
+            document.addEventListener("dragover", function(event) {
+                event.preventDefault();
+            });
+            document.addEventListener("drop", function(event) {
+                event.preventDefault();
+                handleDrop(event);
+            });
+        });
+
+        function handleDrop(event) {
+            var dt = event.dataTransfer;
+            var files = dt.files;
+            handleFiles(files);
+        }
+
+        function handleFiles(files) {
+            var file = files[0];
+            var imageType = /^image\//;
+            if (!imageType.test(file.type)) {
+                alert("Only images can be uploaded.");
+                return;
+            }
+            var img = document.getElementById('uploaded-image');
+            img.file = file;
+            var reader = new FileReader();
+            reader.onload = (function(aImg) {
+                return function(e) {
+                    aImg.src = e.target.result;
+                    updateFileSize('before-size-value', file.size);
+                };
+            })(img);
+            reader.readAsDataURL(file);
+        }
+
+        function uploadViaFile() {
+            var input = document.getElementById('file-input');
+            handleFiles(input.files);
+        }
+
+        function removeExif() {
+            var image = document.getElementById('uploaded-image');
+            var status = document.getElementById('status');
+
+            if (image.src && image.src.startsWith('data:image')) {
+                var beforeSize = image.file.size;
+                // Create a new image object to strip EXIF data
+                var newImage = new Image();
+                newImage.onload = function () {
+                    // Create a canvas element
+                    var canvas = document.createElement("canvas");
+                    var ctx = canvas.getContext("2d");
+                    // Set canvas dimensions same as the image
+                    canvas.width = this.width;
+                    canvas.height = this.height;
+                    // Draw the image onto the canvas
+                    ctx.drawImage(this, 0, 0);
+                    // Convert canvas to base64 image without EXIF
+                    var base64Image = canvas.toDataURL("image/jpeg");
+                    // Set the new base64 image as src for the uploaded image
+                    image.src = base64Image;
+                    updateFileSize('after-size-value', base64Image.length);
+                    status.innerHTML = "EXIF data removed!";
+                };
+                newImage.src = image.src;
+                updateFileSize('before-size-value', beforeSize);
+            } else {
+                status.innerHTML = "Please upload an image.";
+            }
+        }
+
+        function updateFileSize(elementId, sizeInBytes) {
+            var sizeInKB = sizeInBytes / 1024;
+            document.getElementById(elementId).textContent = sizeInKB.toFixed(2);
+        }
+    </script>
+</body>
+</html>
